@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Free Souls </title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+
+<style>
+  body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    color: white;
+    overflow: hidden;
+  }
+  #appContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #chatHeader {
+    width: 100%;
+    z-index: 100;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+  #chatHeader > .left-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    flex-shrink: 1;
+  }
+  #chatHeader > .left-section > span.title {
+    white-space: nowrap;
+  }
+  #typingStatus {
+    font-size: 0.8rem;
+    color: #0f0;
+    font-weight: bold;
+    font-style: italic;
+    margin-top: 0;
+    display: block;
+  }
+  #chatHeader .button-group {
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  #chatHeader .button-group button {
+    border-radius: 12px;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+    color: white;
+    background: #1dd1a1; 
+    transition: 0.2s all ease-in-out;
+  }
+  #endBtn { background: #ff4b5c; }
+  #endBtn:hover { background: #ff6b7a; }
+  #newBtn { background: #1dd1a1; }
+  #newBtn:hover { background: #48e6b5; }
+  #chatContainer {
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    scroll-behavior: smooth;
+    margin-top: 0;
+    margin-bottom: 0;
+    flex-grow: 1;
+  }
+  .message {
+    max-width: 75%;
+    padding: 0.75rem 1rem;
+    border-radius: 20px;
+    word-wrap: break-word;
+    position: relative;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.3s forwards;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .sent {
+    align-self: flex-end;
+    background: rgba(0,220,255,0.2);
+    border: 1px solid rgba(0,180,255,0.5);
+    border-bottom-right-radius: 4px;
+  }
+  .received {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-bottom-left-radius: 4px;
+  }
+  .timestamp {
+    display: block;
+    font-size: 0.65rem;
+    text-align: right;
+    color: #bbb;
+    margin-top: 2px;
+  }
+  #inputBar {
+    width: 100%;
+    display: flex;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(255,255,255,0.2);
+    z-index: 100;
+    flex-shrink: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    transition: bottom 0.25s ease-in-out;
+  }
+  #msg {
+    flex: 1;
+    border-radius: 25px;
+    padding: 0.75rem 1rem;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: rgba(255,255,255,0.05);
+    color: white;
+    backdrop-filter: blur(12px);
+  }
+  #sendBtn {
+    border-radius: 50%;
+    border: none;
+    padding: 0.75rem;
+    background: linear-gradient(145deg, #00f5ff, #28b4ff);
+    color: white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, background 0.2s;
+  }
+  #sendBtn:hover { transform: scale(1.1) rotate(5deg); background: linear-gradient(145deg, #28b4ff, #00f5ff); }
+  #sendBtn:active { transform: scale(0.95) rotate(-3deg); }
+  .typing { display: inline-block; }
+  .typing::after { content: '...'; animation: blink 1s infinite; }
+  @keyframes blink { 0%,50%,100%{opacity:0;} 25%,75%{opacity:1;} }
+  @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+  @media(max-width: 768px){ #chatHeader { font-size: 1.2rem; } #chatHeader .button-group button { font-size: 0.95rem; } #sendBtn { min-width: 45px; min-height: 45px; font-size: 1.1rem; } }
+  @media(max-width: 480px){ #chatContainer { padding: 0.5rem; } #msg { font-size: 0.95rem; } }
+</style>
+</head>
+<body>
+
+<div id="appContainer">
+  <div id="chatHeader">
+    <div class="left-section">
+      <span class="title">👻 Free Souls</span>
+      <div id="connectionPill" style="margin-top:4px; font-size:0.75rem; padding:2px 8px; border-radius:12px; border:1px dotted #fff; display:inline-block; color:#fff; backdrop-filter: blur(10px); background: rgba(255,255,255,0.05);">Waiting...</div>
+      <small id="typingStatus"></small>
+    </div>
+    <div class="button-group right-buttons">
+      <button id="endBtn" title="End Chat"><i class="fas fa-times"></i> End Chat</button>
+      <button id="newBtn" title="New Random User"><i class="fas fa-sync-alt"></i> Reload</button>
+    </div>
+  </div>
+
+  <div id="chatContainer"></div>
+
+  <div id="inputBar">
+    <input id="msg" type="text" placeholder="Type a message..." />
+    <button id="sendBtn" onclick="sendMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<script>
+let originalTitle = document.title;
+const chatContainer = document.getElementById("chatContainer");
+const msgInput = document.getElementById("msg");
+const typingStatus = document.getElementById("typingStatus");
+const chatHeader = document.getElementById("chatHeader");
+const inputBar = document.getElementById("inputBar");
+const appContainer = document.getElementById("appContainer");
+const connectionPill = document.getElementById("connectionPill");
+
+let socket;
+let typingTimeout = null;
+let reconnectInterval = 1000;
+const maxReconnectInterval = 10000;
+let manualDisconnect = false;
+let isConnecting = false;
+let hasPaired = false;
+
+function setConnectionStatus(status) {
+  if (status === "connected") {
+    connectionPill.textContent = "Connected";
+    connectionPill.style.border = "1px dotted #0f0";
+    connectionPill.style.color = "#0f0";
+  } else if (status === "disconnected") {
+    connectionPill.textContent = "Disconnected";
+    connectionPill.style.border = "1px dotted #f00";
+    connectionPill.style.color = "#f00";
+  } else {
+    connectionPill.textContent = "Waiting...";
+    connectionPill.style.border = "1px dotted #fff";
+    connectionPill.style.color = "#fff";
+  }
+}
+
+// Initialize connection pill to Waiting on page load
+setConnectionStatus("waiting");
+
+function adjustChatHeight() {
+  // Calculate inputBar bottom offset
+  let inputBarBottom = 0;
+  if (window.visualViewport) {
+    const viewportHeight = window.visualViewport.height;
+    const windowInnerHeight = window.innerHeight;
+    inputBarBottom = windowInnerHeight - viewportHeight;
+  }
+  inputBar.style.bottom = inputBarBottom + "px";
+
+  // Calculate chatContainer height
+  const inputBarHeight = inputBar.offsetHeight;
+  const headerHeight = chatHeader.offsetHeight;
+  const availableHeight = window.innerHeight - headerHeight - inputBarHeight - inputBarBottom;
+
+  chatContainer.style.height = availableHeight + "px";
+  chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+}
+
+window.addEventListener('resize', adjustChatHeight);
+window.addEventListener('orientationchange', adjustChatHeight);
+window.addEventListener('load', adjustChatHeight);
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', adjustChatHeight);
+}
+
+msgInput.addEventListener('focus', () => {
+  // Scroll chat to bottom when keyboard appears on mobile
+  setTimeout(() => {
+    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+  }, 300);
+});
+
+function showTemporaryMessage(text, type) {
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `message ${type}`;
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  msgDiv.innerHTML = `${text}<span class="timestamp">${time}</span>`;
+  chatContainer.appendChild(msgDiv);
+  chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+  setTimeout(() => {
+    if (msgDiv.parentNode) {
+      msgDiv.parentNode.removeChild(msgDiv);
+    }
+  }, 2000);
+}
+
+function cleanupSocket() {
+  if (socket) {
+    socket.onopen = null;
+    socket.onmessage = null;
+    socket.onclose = null;
+    socket.onerror = null;
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close();
+    }
+    socket = null;
+  }
+}
+
+function connectChat() {
+  if (isConnecting) return;
+  isConnecting = true;
+
+  // Clean up previous socket if any
+  cleanupSocket();
+
+  hasPaired = false; // reset pairing before connection
+  // Do not setConnectionStatus("waiting") here; only when actively searching
+
+  socket = new WebSocket("ws://192.168.1.216:8080");
+
+  socket.onopen = () => {
+    // Clear previous connection messages
+    const connectionMsgs = chatContainer.querySelectorAll('.message');
+    connectionMsgs.forEach(msg => msg.remove());
+
+    manualDisconnect = false;
+    isConnecting = false;
+
+    // Do not set pill to "Waiting..." immediately here
+  };
+
+  // Handle incoming messages and pairing
+  socket.onmessage = (e) => {
+    if(e.data === "__typing__"){
+      typingStatus.textContent = "Typing...";
+      typingStatus.style.display = "block";
+      if(typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(()=>{
+        typingStatus.style.display = "none";
+        typingStatus.textContent = "";
+      }, 1500);
+      return;
+    }
+
+    // Partner ended
+    if(e.data === "__partner_ended__"){
+      setConnectionStatus("waiting"); 
+      showTemporaryMessage("Partner ended the chat. Searching for a new user...", "received");
+      cleanupSocket();
+      isConnecting = false;
+      hasPaired = false; // reset pairing
+      setTimeout(()=>connectChat(), 1000);
+      return;
+    }
+
+    // Server signals that pairing is established
+    if(e.data === "__paired__"){
+      setConnectionStatus("connected");
+      hasPaired = true;
+      showTemporaryMessage("You are now paired with a stranger!", "received");
+      return;
+    }
+
+    // Only show messages if paired
+    if(hasPaired && e.data !== "__typing__" && e.data !== "__partner_ended__") {
+      addMessage(e.data, "received");
+      if("Notification" in window && Notification.permission === "granted"){
+        new Notification("New message", {body:e.data});
+      }
+      if(document.hasFocus() === false) document.title = '💬 New Message!';
+    }
+  };
+
+  socket.onclose = () => {
+    if (!manualDisconnect) {
+      showTemporaryMessage("Disconnected ❌ Searching for a new user...", "received");
+      setConnectionStatus("waiting");
+      setTimeout(() => {
+        reconnectInterval = Math.min(reconnectInterval * 2, maxReconnectInterval);
+        isConnecting = false;
+        connectChat();
+      }, reconnectInterval);
+    } else {
+      setConnectionStatus("disconnected");
+      isConnecting = false;
+    }
+  };
+
+  socket.onerror = (err) => {
+    console.error("WebSocket error", err);
+    socket.close();
+  };
+}
+
+connectChat();
+
+function sendMsg(){
+  const msg = msgInput.value.trim();
+  if(!msg || !socket || socket.readyState !== WebSocket.OPEN || !hasPaired) return;
+  addMessage(msg, "sent");
+  socket.send(msg);
+  msgInput.value = '';
+}
+
+msgInput.addEventListener("keypress", e => { if(e.key === "Enter") sendMsg(); });
+
+msgInput.addEventListener("input", () => {
+  if (msgInput.value.length > 0 && socket && socket.readyState === WebSocket.OPEN) {
+    socket.send("__typing__");
+  }
+});
+
+function addMessage(text, type){
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `message ${type}`;
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  msgDiv.innerHTML = `${text}<span class="timestamp">${time}</span>`;
+  chatContainer.appendChild(msgDiv);
+  chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+}
+
+// End chat
+document.getElementById("endBtn").addEventListener("click", ()=>{
+  if(socket && socket.readyState === WebSocket.OPEN){
+    socket.send("__end_chat__");
+  }
+  manualDisconnect = true; // mark as manual disconnect
+  isConnecting = false;
+  hasPaired = false; // reset pairing
+  cleanupSocket();
+  chatContainer.innerHTML = '';
+  showTemporaryMessage("Chat ended. Click 🔄 to find a new user.", "received");
+  // No automatic reconnect
+  setConnectionStatus("disconnected");
+});
+
+// New random user
+document.getElementById("newBtn").addEventListener("click", ()=>{
+  if(socket && socket.readyState === WebSocket.OPEN && !manualDisconnect){
+    socket.send("__end_chat__");
+  }
+  manualDisconnect = false; // reset so a new chat can connect
+  isConnecting = false;
+  hasPaired = false; // reset pairing
+  cleanupSocket();
+  chatContainer.innerHTML = '';
+  showTemporaryMessage("Searching for a new user...", "received");
+  setConnectionStatus("waiting");
+  setTimeout(()=>{ connectChat(); }, 500);
+});
+
+// Notifications
+window.onload = function() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+};
+
+window.addEventListener('focus', () => {
+  document.title = originalTitle;
+});
+</script>
+
+</body>
+</html>
