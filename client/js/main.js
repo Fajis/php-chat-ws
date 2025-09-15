@@ -62,28 +62,35 @@ function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
   // socket=new WebSocket("ws://192.168.1.216:8080");
   socket=new WebSocket("wss://tba-delivered-std-so.trycloudflare.com");
-  socket.onopen = () => {
-    manualDisconnect=false; 
-    isConnecting=false;
-
-    // Send initial info to server
-    const initPayload = {
-        event: 'init',
-        userAgent: navigator.userAgent
-    };
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            initPayload.geo = {
-                lat: pos.coords.latitude,
-                lon: pos.coords.longitude
+socket.onopen = () => {
+      manualDisconnect = false; 
+      isConnecting = false;
+  
+      // Fetch real client IP from server
+      fetch('../helpers/get-ip.php')
+        .then(res => res.text())
+        .then(clientIp => {
+            const initPayload = {
+                event: 'init',
+                ip: clientIp, // Real client IP
+                userAgent: navigator.userAgent
             };
-            socket.send(JSON.stringify(initPayload));
-        }, () => {
-            socket.send(JSON.stringify(initPayload)); // fallback if user denies
+  
+            // Optional geolocation
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    initPayload.geo = {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude
+                    };
+                    socket.send(JSON.stringify(initPayload));
+                }, () => {
+                    socket.send(JSON.stringify(initPayload)); // fallback if user denies
+                });
+            } else {
+                socket.send(JSON.stringify(initPayload));
+            }
         });
-    } else {
-        socket.send(JSON.stringify(initPayload));
-    }
   };
   socket.onmessage=(e)=>{
     if(e.data==="__typing__"){ typingStatus.textContent="Typing..."; typingStatus.style.display="block"; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{ typingStatus.style.display="none"; typingStatus.textContent=""; },1500); return; }

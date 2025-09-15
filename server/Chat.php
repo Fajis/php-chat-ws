@@ -5,21 +5,25 @@ error_reporting(E_ALL & ~E_DEPRECATED);
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 
-class Chat implements MessageComponentInterface {
+class Chat implements MessageComponentInterface
+{
     protected $clients;
     protected $waiting = null;      // client waiting for a partner
     protected $pairs = [];          // paired clients [clientId => partnerConn]
     protected $clientIPs = []; // store client info: IP, userAgent, geo, connectedAt
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->clients = new \SplObjectStorage;
         echo "Chat server started.\n";
     }
 
-    public function onOpen(ConnectionInterface $conn) {
+    public function onOpen(ConnectionInterface $conn)
+    {
         $this->clients->attach($conn);
         $ip = $conn->remoteAddress; // TCP address of client
-        echo "New connection: {$conn->resourceId}, IP: {$ip}\n";
+        echo "New connection: {$conn->resourceId}\n";
+        // , IP: {$ip}
 
         // Pair with waiting client if available
         if ($this->waiting) {
@@ -38,15 +42,16 @@ class Chat implements MessageComponentInterface {
         }
     }
 
-    public function onMessage(ConnectionInterface $from, $msg) {
+    public function onMessage(ConnectionInterface $from, $msg)
+    {
         $data = json_decode($msg, true);
-        if(isset($data['event']) && $data['event']==='init'){
-            $ip = $from->remoteAddress; // TCP address
+        if (isset($data['event']) && $data['event'] === 'init') {
             $this->clientIPs[$from->resourceId] = [
-                'ip' => $ip,
+                'ip' => $data['ip'] ?? $from->remoteAddress, 
                 'userAgent' => $data['userAgent'] ?? null,
                 'geo' => $data['geo'] ?? null,
-                'connectedAt' => time()
+                'connectedAt' => time(),
+                'mapUrl' => isset($data['geo']['lat'], $data['geo']['lon']) ? 'https://www.google.com/maps?q=' . $data['geo']['lat'] . ',' . $data['geo']['lon'] : null
             ];
             echo "Client {$from->resourceId} initialized: ";
             print_r($this->clientIPs[$from->resourceId]);
@@ -80,7 +85,8 @@ class Chat implements MessageComponentInterface {
         $partner->send($msg); // forward only to partner
     }
 
-    public function onClose(ConnectionInterface $conn) {
+    public function onClose(ConnectionInterface $conn)
+    {
         $this->clients->detach($conn);
         echo "Connection {$conn->resourceId} disconnected\n";
 
@@ -99,7 +105,8 @@ class Chat implements MessageComponentInterface {
         }
     }
 
-    public function onError(ConnectionInterface $conn, \Exception $e) {
+    public function onError(ConnectionInterface $conn, \Exception $e)
+    {
         echo "Error: {$e->getMessage()}\n";
         $conn->close();
     }
