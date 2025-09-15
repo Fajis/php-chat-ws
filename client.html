@@ -207,7 +207,8 @@ function cleanupSocket(){ if(socket){ socket.onopen=null; socket.onmessage=null;
 
 function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
-  socket=new WebSocket("ws://192.168.1.216:8080");
+  // socket=new WebSocket("ws://192.168.1.216:8080");
+  socket=new WebSocket("wss://tba-delivered-std-so.trycloudflare.com");
   socket.onopen=()=>{ manualDisconnect=false; isConnecting=false; };
   socket.onmessage=(e)=>{
     if(e.data==="__typing__"){ typingStatus.textContent="Typing..."; typingStatus.style.display="block"; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{ typingStatus.style.display="none"; typingStatus.textContent=""; },1500); return; }
@@ -241,16 +242,29 @@ function addMessage(text, type) {
   const msgDiv = document.createElement("div");
   msgDiv.className = `message ${type}`;
 
-  let content = typeof text === 'object' ? text.text : text;
-  let replyHtml = '';
-  if(typeof text === 'object' && text.reply){
-    replyHtml = `<div style='font-size:0.8rem; color:#0ff; margin-bottom:4px; padding:4px 8px; border-radius:10px; background: rgba(0,255,255,0.1);'><i class='fas fa-reply'></i> ${text.reply}</div>`;
+  // Escape HTML for content and reply, but preserve emoji rendering
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
+  let content = typeof text === 'object' ? text.text : text;
+  content = escapeHtml(content);
+
+  let replyHtml = '';
+  if (typeof text === 'object' && text.reply) {
+    let replyContent = escapeHtml(text.reply);
+    replyHtml = `<div style='font-size:0.8rem; color:#0ff; margin-bottom:4px; padding:4px 8px; border-radius:10px; background: rgba(0,255,255,0.1);'><i class='fas fa-reply'></i> ${replyContent}</div>`;
+  }
+
+  // For reply button, escape single quotes for JS string and also preserve emoji
+  let contentForReplyBtn = content.replace(/'/g, "\\'");
   msgDiv.innerHTML = `
     ${replyHtml}
     ${content}
-    <span class="reply-btn" onclick="setReplyPreview('${content.replace(/'/g,"\\'")}')"><i class="fas fa-reply"></i></span>
+    <span class="reply-btn" onclick="setReplyPreview('${contentForReplyBtn}')"><i class="fas fa-reply"></i></span>
     <span class="timestamp">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
   `;
 
