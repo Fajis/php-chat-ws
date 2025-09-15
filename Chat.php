@@ -9,6 +9,7 @@ class Chat implements MessageComponentInterface {
     protected $clients;
     protected $waiting = null;      // client waiting for a partner
     protected $pairs = [];          // paired clients [clientId => partnerConn]
+    protected $clientIPs = []; // store client info: IP, userAgent, geo, connectedAt
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
@@ -17,7 +18,8 @@ class Chat implements MessageComponentInterface {
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients->attach($conn);
-        echo "New connection: {$conn->resourceId}\n";
+        $ip = $conn->remoteAddress; // TCP address of client
+        echo "New connection: {$conn->resourceId}, IP: {$ip}\n";
 
         // Pair with waiting client if available
         if ($this->waiting) {
@@ -37,6 +39,20 @@ class Chat implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
+        $data = json_decode($msg, true);
+        if(isset($data['event']) && $data['event']==='init'){
+            $ip = $from->remoteAddress; // TCP address
+            $this->clientIPs[$from->resourceId] = [
+                'ip' => $ip,
+                'userAgent' => $data['userAgent'] ?? null,
+                'geo' => $data['geo'] ?? null,
+                'connectedAt' => time()
+            ];
+            echo "Client {$from->resourceId} initialized: ";
+            print_r($this->clientIPs[$from->resourceId]);
+            return;
+        }
+
         echo "Message from {$from->resourceId}: $msg\n";
 
         if (!isset($this->pairs[$from->resourceId])) {
