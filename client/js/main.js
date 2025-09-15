@@ -1,3 +1,6 @@
+//
+websocket_tunnel = "wss://equality-topics-readers-pipes.trycloudflare.com/";
+// 
 let originalTitle = document.title;
 const chatContainer = document.getElementById("chatContainer");
 const msgInput = document.getElementById("msg");
@@ -61,7 +64,7 @@ function cleanupSocket(){ if(socket){ socket.onopen=null; socket.onmessage=null;
 function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
   // socket=new WebSocket("ws://192.168.1.216:8080");
-  socket=new WebSocket("wss://tba-delivered-std-so.trycloudflare.com");
+  socket=new WebSocket(websocket_tunnel);
 socket.onopen = () => {
       manualDisconnect = false; 
       isConnecting = false;
@@ -92,16 +95,59 @@ socket.onopen = () => {
             }
         });
   };
-  socket.onmessage=(e)=>{
-    if(e.data==="__typing__"){ typingStatus.textContent="Typing..."; typingStatus.style.display="block"; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{ typingStatus.style.display="none"; typingStatus.textContent=""; },1500); return; }
-    if(e.data==="__partner_ended__"){ setConnectionStatus("waiting"); showTemporaryMessage("Partner ended the chat. Searching for a new user...","received"); cleanupSocket(); isConnecting=false; hasPaired=false; setTimeout(()=>connectChat(),1000); return; }
-    if(e.data==="__paired__"){ setConnectionStatus("connected"); hasPaired=true; showTemporaryMessage("You are now paired with a stranger!","received"); return; }
-    if(hasPaired && e.data!=="__typing__" && e.data!=="__partner_ended__"){
-      let data=e.data; try{ data=JSON.parse(e.data); }catch(err){}
-      addMessage(data,"received");
-      if("Notification" in window && Notification.permission==="granted"){ new Notification("New message",{body:(typeof data==='string'?data:data.text)}); }
-      if(document.hasFocus()===false) document.title='💬 New Message!';
-    }
+// Initialize debounce timer at the top of your script
+  window.lastNotificationTime = 0;
+  
+  socket.onmessage = (e) => {
+      if (e.data === "__typing__") {
+          typingStatus.textContent = "Typing...";
+          typingStatus.style.display = "block";
+          if (typingTimeout) clearTimeout(typingTimeout);
+          typingTimeout = setTimeout(() => {
+              typingStatus.style.display = "none";
+              typingStatus.textContent = "";
+          }, 1500);
+          return;
+      }
+  
+      if (e.data === "__partner_ended__") {
+          setConnectionStatus("waiting");
+          showTemporaryMessage("Partner ended the chat. Searching for a new user...", "received");
+          cleanupSocket();
+          isConnecting = false;
+          hasPaired = false;
+          setTimeout(() => connectChat(), 1000);
+          return;
+      }
+  
+      if (e.data === "__paired__") {
+          setConnectionStatus("connected");
+          hasPaired = true;
+          showTemporaryMessage("You are now paired with a stranger!", "received");
+          return;
+      }
+  
+      if (hasPaired && e.data !== "__typing__" && e.data !== "__partner_ended__") {
+          let data = e.data;
+          try { data = JSON.parse(e.data); } catch(err){}
+  
+          addMessage(data, "received");
+  
+          // Notifications with 2s debounce
+          if (!document.hasFocus() && "Notification" in window && Notification.permission === "granted") {
+              const now = Date.now();
+              if (now - window.lastNotificationTime > 2000) {
+                  let messageText = (typeof data === "string") ? data : (data.text || JSON.stringify(data));
+                  new Notification("New message", {
+                      body: messageText,
+                      icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>",
+                      requireInteraction: true
+                  });
+                  window.lastNotificationTime = now;
+              }
+              document.title = '💬 New Message!';
+          }
+      }
   };
   socket.onclose=()=>{ if(!manualDisconnect){ showTemporaryMessage("Disconnected ❌ Searching for a new user...","received"); setConnectionStatus("waiting"); setTimeout(()=>{ reconnectInterval=Math.min(reconnectInterval*2,10000); isConnecting=false; connectChat(); }, reconnectInterval); } else { setConnectionStatus("disconnected"); isConnecting=false; } };
   socket.onerror=(err)=>{ console.error("WebSocket error",err); socket.close(); };
@@ -166,5 +212,9 @@ document.getElementById("newBtn").addEventListener("click",()=>{
 });
 
 // Notifications
-window.onload=function(){ if("Notification" in window && Notification.permission==="default") Notification.requestPermission(); };
+window.onload = () => {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+};
 window.addEventListener('focus',()=>{ document.title=originalTitle; });
