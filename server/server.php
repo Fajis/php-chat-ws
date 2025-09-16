@@ -6,18 +6,22 @@ use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use React\EventLoop\Factory as LoopFactory;
+use React\Socket\Server as ReactSocketServer;
 
 // Create a ReactPHP loop
 $loop = LoopFactory::create();
 
+// Create React socket server on 0.0.0.0:8080
+$socket = new ReactSocketServer('0.0.0.0:8080', $loop);
+
+// Create Ratchet server with the socket
 $server = new IoServer(
     new HttpServer(
         new WsServer(
             new Chat($loop) // pass loop to Chat for optional heartbeat
         )
     ),
-    8080,
-    '0.0.0.0',
+    $socket,
     $loop
 );
 
