@@ -18,7 +18,7 @@ $socket = new ReactSocketServer('0.0.0.0:8080', $loop);
 $server = new IoServer(
     new HttpServer(
         new WsServer(
-            new Chat($loop) // pass loop to Chat for optional heartbeat
+            new Chat()
         )
     ),
     $socket,
@@ -30,6 +30,7 @@ echo "🚀 WebSocket server running at ws://0.0.0.0:8080\n";
 // Minimal heartbeat to keep server alive (runs every 5 minutes)
 $loop->addPeriodicTimer(300, function() {
     echo "[" . date('Y-m-d H:i:s') . "] Heartbeat: keeping server alive\n";
+    flush();
 });
 
 $server->run();

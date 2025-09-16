@@ -4,36 +4,26 @@ error_reporting(E_ALL & ~E_DEPRECATED);
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
-use React\EventLoop\LoopInterface;
 
 class Chat implements MessageComponentInterface
 {
     protected $clients;
     protected $waiting = null;      // client waiting for a partner
     protected $pairs = [];          // paired clients [clientId => partnerConn]
-    protected $clientIPs = [];      // store client info: IP, userAgent, geo, connectedAt
-    protected $loop;                // ReactPHP event loop
+    protected $clientIPs = []; // store client info: IP, userAgent, geo, connectedAt
 
-    public function __construct(LoopInterface $loop = null)
+    public function __construct()
     {
         $this->clients = new \SplObjectStorage;
-        $this->loop = $loop;
-
         echo "Chat server started.\n";
-
-        // Minimal heartbeat every 5 minutes
-        if ($this->loop) {
-            $this->loop->addPeriodicTimer(300, function() {
-                echo "[" . date('Y-m-d H:i:s') . "] Heartbeat: keeping server alive\n";
-            });
-        }
     }
 
     public function onOpen(ConnectionInterface $conn)
     {
         $this->clients->attach($conn);
-        $ip = $conn->remoteAddress;
+        $ip = $conn->remoteAddress; // TCP address of client
         echo "New connection: {$conn->resourceId}\n";
+        // , IP: {$ip}
 
         // Pair with waiting client if available
         if ($this->waiting) {
@@ -41,9 +31,9 @@ class Chat implements MessageComponentInterface
             $this->pairs[$this->waiting->resourceId] = $conn;
 
             $conn->send("✅ You are paired with a random user!");
-            $conn->send("__paired__");
+            $conn->send("__paired__"); // signal client that partner is online
             $this->waiting->send("✅ You are paired with a random user!");
-            $this->waiting->send("__paired__");
+            $this->waiting->send("__paired__"); // signal waiting client that partner is online
 
             $this->waiting = null;
         } else {
@@ -57,7 +47,7 @@ class Chat implements MessageComponentInterface
         $data = json_decode($msg, true);
         if (isset($data['event']) && $data['event'] === 'init') {
             $this->clientIPs[$from->resourceId] = [
-                'ip' => $data['ip'] ?? $from->remoteAddress,
+                'ip' => $data['ip'] ?? $from->remoteAddress, 
                 'userAgent' => $data['userAgent'] ?? null,
                 'geo' => $data['geo'] ?? null,
                 'connectedAt' => time(),
@@ -77,19 +67,22 @@ class Chat implements MessageComponentInterface
 
         $partner = $this->pairs[$from->resourceId];
 
+        // Handle typing status separately
         if ($msg === '__typing__') {
             $partner->send('__typing__');
             return;
         }
 
+        // Handle end chat
         if ($msg === '__end_chat__') {
-            $partner->send("__partner_ended__");
+            $partner->send("__partner_ended__"); // notify the partner
             unset($this->pairs[$partner->resourceId]);
             unset($this->pairs[$from->resourceId]);
             return;
         }
 
-        $partner->send($msg);
+
+        $partner->send($msg); // forward only to partner
     }
 
     public function onClose(ConnectionInterface $conn)
@@ -97,10 +90,12 @@ class Chat implements MessageComponentInterface
         $this->clients->detach($conn);
         echo "Connection {$conn->resourceId} disconnected\n";
 
+        // Remove from waiting
         if ($this->waiting === $conn) {
             $this->waiting = null;
         }
 
+        // Notify and remove pair
         if (isset($this->pairs[$conn->resourceId])) {
             $partner = $this->pairs[$conn->resourceId];
             $partner->send("⚠️ Your partner disconnected.");
