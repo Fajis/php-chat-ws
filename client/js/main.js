@@ -1,6 +1,4 @@
-//
-websocket_tunnel = "wss://equality-topics-readers-pipes.trycloudflare.com/";
-// 
+
 let originalTitle = document.title;
 const chatContainer = document.getElementById("chatContainer");
 const msgInput = document.getElementById("msg");
@@ -9,10 +7,23 @@ const chatHeader = document.getElementById("chatHeader");
 const inputBar = document.getElementById("inputBar");
 const appContainer = document.getElementById("appContainer");
 const connectionPill = document.getElementById("connectionPill");
+let unreadMessage = false;
 
 let socket, typingTimeout = null, reconnectInterval = 1000, manualDisconnect=false, isConnecting=false, hasPaired=false;
 let replyToMessage = null;
 const replyPreview = document.getElementById("replyPreview");
+
+const statusDots = {
+    connected: '🟢',
+    waiting: '⚪',
+    disconnected: '🔴'
+};
+
+function updateTitle(status){
+    let dot = statusDots[status] || '⚪';
+    let newMsg = unreadMessage ? '💬 ' : '';
+    document.title = `${dot} ${newMsg}${originalTitle}`;
+}
 
 function setReplyPreview(text){
   replyToMessage = text;
@@ -26,9 +37,23 @@ function setReplyPreview(text){
 function clearReply(){ replyToMessage=null; replyPreview.style.display='none'; }
 
 function setConnectionStatus(status){
-  if(status==="connected"){ connectionPill.textContent="Connected"; connectionPill.style.border="1px dotted #0f0"; connectionPill.style.color="#0f0"; }
-  else if(status==="disconnected"){ connectionPill.textContent="Disconnected"; connectionPill.style.border="1px dotted #f00"; connectionPill.style.color="#f00"; }
-  else{ connectionPill.textContent="Waiting..."; connectionPill.style.border="1px dotted #fff"; connectionPill.style.color="#fff"; }
+    if(status==="connected"){ 
+        connectionPill.textContent="Connected"; 
+        connectionPill.style.border="1px dotted #0f0"; 
+        connectionPill.style.color="#0f0"; 
+    }
+    else if(status==="disconnected"){ 
+        connectionPill.textContent="Disconnected"; 
+        connectionPill.style.border="1px dotted #f00"; 
+        connectionPill.style.color="#f00"; 
+    }
+    else{ 
+        connectionPill.textContent="Waiting..."; 
+        connectionPill.style.border="1px dotted #fff"; 
+        connectionPill.style.color="#fff"; 
+    }
+
+    updateTitle(status);
 }
 setConnectionStatus("waiting");
 
@@ -63,8 +88,7 @@ function cleanupSocket(){ if(socket){ socket.onopen=null; socket.onmessage=null;
 
 function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
-  // socket=new WebSocket("ws://192.168.1.216:8080");
-  socket=new WebSocket(websocket_tunnel);
+  socket=new WebSocket("wss://php-chat-ws-1.onrender.com");
 socket.onopen = () => {
       manualDisconnect = false; 
       isConnecting = false;
@@ -75,7 +99,7 @@ socket.onopen = () => {
         .then(clientIp => {
             const initPayload = {
                 event: 'init',
-                ip: clientIp, // Real client IP
+                ip: clientIp, 
                 userAgent: navigator.userAgent
             };
   
@@ -88,7 +112,7 @@ socket.onopen = () => {
                     };
                     socket.send(JSON.stringify(initPayload));
                 }, () => {
-                    socket.send(JSON.stringify(initPayload)); // fallback if user denies
+                    socket.send(JSON.stringify(initPayload)); 
                 });
             } else {
                 socket.send(JSON.stringify(initPayload));
@@ -132,6 +156,8 @@ socket.onopen = () => {
           try { data = JSON.parse(e.data); } catch(err){}
   
           addMessage(data, "received");
+          unreadMessage = true; // mark message as unread
+          updateTitle(getCurrentStatus()); // getCurrentStatus() = current status string
   
           // Notifications with 2s debounce
           if (!document.hasFocus() && "Notification" in window && Notification.permission === "granted") {
@@ -145,7 +171,7 @@ socket.onopen = () => {
                   });
                   window.lastNotificationTime = now;
               }
-              document.title = '💬 New Message!';
+              document.title = '💬 New Message! ';
           }
       }
   };
@@ -200,6 +226,12 @@ function addMessage(text, type) {
   chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 }
 
+function getCurrentStatus() {
+    if(connectionPill.textContent === "Connected") return "connected";
+    if(connectionPill.textContent === "Disconnected") return "disconnected";
+    return "waiting";
+}
+
 // End chat
 document.getElementById("endBtn").addEventListener("click",()=>{
   if(socket && socket.readyState===WebSocket.OPEN) socket.send("__end_chat__");
@@ -213,8 +245,13 @@ document.getElementById("newBtn").addEventListener("click",()=>{
 
 // Notifications
 window.onload = () => {
-    if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-    }
+   if ("Notification" in window && Notification.permission !== "granted") {
+       Notification.requestPermission().then(permission => {
+           console.log("Notification permission:", permission);
+       });
+   }
 };
-window.addEventListener('focus',()=>{ document.title=originalTitle; });
+window.addEventListener('focus', () => {
+    unreadMessage = false;
+    updateTitle(getCurrentStatus());
+});
