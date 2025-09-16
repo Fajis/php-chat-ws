@@ -19,6 +19,32 @@ const statusDots = {
     disconnected: '🔴'
 };
 
+// AUTO DISCONNECT AFTER 15 MINS
+
+let idleTimeout = null;
+
+function resetIdleTimer() {
+    if(idleTimeout) clearTimeout(idleTimeout);
+    idleTimeout = setTimeout(() => {
+        if(socket && socket.readyState === WebSocket.OPEN) {
+            socket.send("__end_chat__");
+            manualDisconnect = true;
+            cleanupSocket();
+            showTemporaryMessage("Disconnected due to inactivity.", "received");
+            setConnectionStatus("disconnected");
+        }
+    }, 15 * 60 * 1000); // 15 minutes
+}
+
+// Reset on interaction
+['mousemove', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+    window.addEventListener(event, resetIdleTimer);
+});
+
+resetIdleTimer(); // initialize
+
+// END
+
 function updateTitle(status){
     let dot = statusDots[status] || '⚪';
     let newMsg = unreadMessage ? '💬 ' : '';
