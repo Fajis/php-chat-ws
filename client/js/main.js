@@ -45,6 +45,19 @@ resetIdleTimer(); // initialize
 
 // END
 
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+    navigator.serviceWorker.register('/sw.js')
+    .then(reg => {
+        console.log('Service Worker registered', reg);
+        // Ask for notification permission
+        return Notification.requestPermission();
+    })
+    .then(permission => {
+        console.log('Notification permission:', permission);
+    })
+    .catch(err => console.error('Service Worker registration failed:', err));
+}
+
 function updateTitle(status){
     let dot = statusDots[status] || '⚪';
     let newMsg = unreadMessage ? '💬 ' : '';
@@ -115,7 +128,7 @@ function cleanupSocket(){ if(socket){ socket.onopen=null; socket.onmessage=null;
 function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
   socket=new WebSocket("wss://php-chat-ws-1.onrender.com");
-socket.onopen = () => {
+  socket.onopen = () => {
       manualDisconnect = false; 
       isConnecting = false;
   
@@ -186,18 +199,23 @@ socket.onopen = () => {
           updateTitle(getCurrentStatus()); // getCurrentStatus() = current status string
   
           // Notifications with 2s debounce
-          if (!document.hasFocus() && "Notification" in window && Notification.permission === "granted") {
+          if ("Notification" in window && Notification.permission === "granted") {
               const now = Date.now();
               if (now - window.lastNotificationTime > 2000) {
                   let messageText = (typeof data === "string") ? data : (data.text || JSON.stringify(data));
-                  new Notification("New message", {
-                      body: messageText,
-                      icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>",
-                      requireInteraction: true
+          
+                  // Use Service Worker to show notification
+                  navigator.serviceWorker.ready.then(registration => {
+                      registration.showNotification("New message", {
+                          body: messageText,
+                          icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>",
+                          requireInteraction: true
+                      });
                   });
+          
                   window.lastNotificationTime = now;
+                  document.title = '💬 New Message!';
               }
-              document.title = '💬 New Message! ';
           }
       }
   };
