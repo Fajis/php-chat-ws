@@ -20,14 +20,19 @@
       <small id="typingStatus"></small>
     </div>
     <div class="button-group right-buttons">
-      <button id="endBtn" title="End Chat"><i class="fas fa-times"></i> End Chat</button>
-      <button id="newBtn" title="New Random User"><i class="fas fa-sync-alt"></i> Reload</button>
+      <button id="muteRemoteBtn" title="Mute Stranger"><i class="fas fa-volume-mute"></i></button>
+      <button id="newBtn" title="New Random User"><i class="fas fa-sync-alt"></i></button>
+      <button id="endBtn" title="End Chat"><i class="fas fa-times"></i></button>
     </div>
   </div>
 
   <div id="chatContainer"></div>
+  
   <div id="voicePopup" >
       🎤 Stranger is talking...
+  </div>
+  <div id="muteIndicator">
+      🔇 You are muted by the stranger
   </div>
 
   <div id="replyPreview" class="reply-preview" style="display:none;"></div>
