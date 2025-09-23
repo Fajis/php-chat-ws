@@ -128,13 +128,14 @@ function cleanupSocket(){ if(socket){ socket.onopen=null; socket.onmessage=null;
 function connectChat(){
   if(isConnecting) return; isConnecting=true; cleanupSocket(); hasPaired=false;
   socket=new WebSocket("wss://php-chat-ws-1.onrender.com");
+//  socket=new WebSocket("ws://192.168.1.216:8080");
   socket.onopen = () => {
       manualDisconnect = false; 
       isConnecting = false;
   
       // Fetch real client IP from server
-      fetch('../helpers/get-ip.php')
-        .then(res => res.text())
+    fetch('../helpers/get-ip.php')
+      .then(res => res.text())
         .then(clientIp => {
             const initPayload = {
                 event: 'init',
@@ -161,64 +162,84 @@ function connectChat(){
 // Initialize debounce timer at the top of your script
   window.lastNotificationTime = 0;
   
-  socket.onmessage = (e) => {
-      if (e.data === "__typing__") {
-          typingStatus.textContent = "Typing...";
-          typingStatus.style.display = "block";
-          if (typingTimeout) clearTimeout(typingTimeout);
-          typingTimeout = setTimeout(() => {
-              typingStatus.style.display = "none";
-              typingStatus.textContent = "";
-          }, 1500);
-          return;
-      }
-  
-      if (e.data === "__partner_ended__") {
-          setConnectionStatus("waiting");
-          showTemporaryMessage("Partner ended the chat. Searching for a new user...", "received");
-          cleanupSocket();
-          isConnecting = false;
-          hasPaired = false;
-          setTimeout(() => connectChat(), 1000);
-          return;
-      }
-  
-      if (e.data === "__paired__") {
-          setConnectionStatus("connected");
-          hasPaired = true;
-          showTemporaryMessage("You are now paired with a stranger!", "received");
-          return;
-      }
-  
-      if (hasPaired && e.data !== "__typing__" && e.data !== "__partner_ended__") {
-          let data = e.data;
-          try { data = JSON.parse(e.data); } catch(err){}
-  
-          addMessage(data, "received");
-          unreadMessage = true; // mark message as unread
-          updateTitle(getCurrentStatus()); // getCurrentStatus() = current status string
-  
-          // Notifications with 2s debounce
-          if ("Notification" in window && Notification.permission === "granted") {
-              const now = Date.now();
-              if (now - window.lastNotificationTime > 2000) {
-                  let messageText = (typeof data === "string") ? data : (data.text || JSON.stringify(data));
-          
-                  // Use Service Worker to show notification
-                  navigator.serviceWorker.ready.then(registration => {
-                      registration.showNotification("New message", {
-                          body: messageText,
-                          icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>",
-                          requireInteraction: true
-                      });
-                  });
-          
-                  window.lastNotificationTime = now;
-                  document.title = '💬 New Message!';
-              }
-          }
-      }
-  };
+socket.onmessage = (e) => {
+    if (e.data === "__typing__") {
+        typingStatus.textContent = "Typing...";
+        typingStatus.style.display = "block";
+        if (typingTimeout) clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            typingStatus.style.display = "none";
+            typingStatus.textContent = "";
+        }, 1500);
+        return;
+    }
+
+    if (e.data === "__partner_ended__") {
+        setConnectionStatus("waiting");
+        showTemporaryMessage("Partner ended the chat. Searching for a new user...", "received");
+        cleanupSocket();
+        isConnecting = false;
+        hasPaired = false;
+        setTimeout(() => connectChat(), 1000);
+        return;
+    }
+
+    if (e.data === "__paired__") {
+        setConnectionStatus("connected");
+        hasPaired = true;
+        showTemporaryMessage("You are now paired with a stranger!", "received");
+        initLocalAudio(); 
+        return;
+    }
+
+    // Handle WebRTC signaling messages
+    try {
+        const jsonData = JSON.parse(e.data);
+
+        // Handle speaking event first
+        if (jsonData.type === 'speaking') {
+            const popup = document.getElementById('voicePopup');
+            if (popup) popup.style.display = jsonData.speaking ? 'flex' : 'none';
+            // Do not return here, allow normal chat processing to continue
+        }
+
+        // Then handle WebRTC signaling
+        if (['offer','answer','ice'].includes(jsonData.type)) {
+            handleSignaling(jsonData);
+            return;
+        }
+
+    } catch(err) {}
+
+    if (hasPaired && e.data !== "__typing__" && e.data !== "__partner_ended__") {
+        let data = e.data;
+        try { data = JSON.parse(e.data); } catch(err){}
+
+        addMessage(data, "received");
+        unreadMessage = true; // mark message as unread
+        updateTitle(getCurrentStatus()); // getCurrentStatus() = current status string
+
+        // Notifications with 2s debounce
+        if ("Notification" in window && Notification.permission === "granted") {
+            const now = Date.now();
+            if (now - window.lastNotificationTime > 2000) {
+                let messageText = (typeof data === "string") ? data : (data.text || JSON.stringify(data));
+        
+                // Use Service Worker to show notification
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification("New message", {
+                        body: messageText,
+                        icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>",
+                        requireInteraction: true
+                    });
+                });
+        
+                window.lastNotificationTime = now;
+                document.title = '💬 New Message!';
+            }
+        }
+    }
+};
   socket.onclose=()=>{ if(!manualDisconnect){ showTemporaryMessage("Disconnected ❌ Searching for a new user...","received"); setConnectionStatus("waiting"); setTimeout(()=>{ reconnectInterval=Math.min(reconnectInterval*2,10000); isConnecting=false; connectChat(); }, reconnectInterval); } else { setConnectionStatus("disconnected"); isConnecting=false; } };
   socket.onerror=(err)=>{ console.error("WebSocket error",err); socket.close(); };
 }
@@ -274,6 +295,134 @@ function getCurrentStatus() {
     if(connectionPill.textContent === "Connected") return "connected";
     if(connectionPill.textContent === "Disconnected") return "disconnected";
     return "waiting";
+}
+
+// ======== AUDIO CHAT ========
+
+let localStream = null;
+let peerConnection = null;
+const voiceBtn = document.getElementById("voiceBtn");
+let isTalking = false;
+
+// STUN server for NAT traversal
+const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+// Single remote audio element
+let remoteAudio = document.getElementById("remoteAudio");
+if (!remoteAudio) {
+    remoteAudio = document.createElement("audio");
+    remoteAudio.id = "remoteAudio";
+    remoteAudio.autoplay = true;
+    remoteAudio.style.display = "none"; 
+    document.body.appendChild(remoteAudio);
+}
+
+voiceBtn.addEventListener("click", async () => {
+    if (!hasPaired) {
+        alert("You can only talk when connected to a stranger!");
+        return;
+    }
+
+    if (!isTalking) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            startVoiceChat();
+            voiceBtn.innerHTML = '<i class="fas fa-stop"></i>'; // stop icon
+            isTalking = true;
+            socket.send(JSON.stringify({ type: 'speaking', speaking: true }));
+        } catch (err) {
+            console.error("Microphone access denied:", err);
+            alert("Microphone permission required to talk.");
+        }
+    } else {
+        stopVoiceChat();
+        voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>'; // mic icon
+        isTalking = false;
+         socket.send(JSON.stringify({ type: 'speaking', speaking: false }));
+    }
+});
+// Call this when user is paired
+async function initLocalAudio() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Microphone access is not supported or page is not served over HTTPS.");
+        return;
+    }
+
+    if (!localStream) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+            console.error("Microphone access denied:", err);
+            alert("Microphone permission required to talk.");
+        }
+    }
+}
+
+function startVoiceChat() {
+    peerConnection = new RTCPeerConnection(rtcConfig);
+
+    // Add local tracks before creating offer
+    if (localStream) {
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    }
+
+    // Remote audio
+    peerConnection.ontrack = event => {
+        remoteAudio.srcObject = event.streams[0];
+        remoteAudio.play().catch(err => console.warn("Autoplay prevented:", err));
+    };
+
+    // ICE candidates
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            socket.send(JSON.stringify({ type: "ice", candidate: event.candidate }));
+        }
+    };
+
+    // Create offer
+    peerConnection.createOffer()
+        .then(offer => peerConnection.setLocalDescription(offer))
+        .then(() => socket.send(JSON.stringify({ type: "offer", sdp: peerConnection.localDescription })));
+}
+
+function stopVoiceChat() {
+    if (peerConnection) peerConnection.close();
+    peerConnection = null;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    // Clear remote audio
+    remoteAudio.srcObject = null;
+}
+
+// ======= HANDLE SIGNALING =======
+function handleSignaling(data) {
+    switch(data.type) {
+        case "offer":
+            if (!peerConnection) peerConnection = new RTCPeerConnection(rtcConfig);
+            localStream?.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            peerConnection.ontrack = event => {
+                remoteAudio.srcObject = event.streams[0];
+                remoteAudio.play().catch(err => console.warn("Autoplay prevented:", err));
+            };
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) socket.send(JSON.stringify({ type: "ice", candidate: event.candidate }));
+            };
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => peerConnection.setLocalDescription(answer))
+                .then(() => socket.send(JSON.stringify({ type: "answer", sdp: peerConnection.localDescription })));
+            break;
+        case "answer":
+            peerConnection?.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            break;
+        case "ice":
+            peerConnection?.addIceCandidate(new RTCIceCandidate(data.candidate));
+            break;
+    }
 }
 
 // End chat

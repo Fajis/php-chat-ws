@@ -95,15 +95,87 @@ body {
   z-index: 100;
 }
 #msg { flex:1; border-radius:25px; padding:0.75rem 1rem; border:none; outline:none; font-size:16px; background:rgba(255,255,255,0.05); color:white; backdrop-filter:blur(12px); }
-#sendBtn { border-radius:50%; border:none; padding:0.75rem; background:linear-gradient(145deg,#00f5ff,#28b4ff); color:white; font-size:1.25rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.15s, background 0.2s; }
-#sendBtn:hover { transform:scale(1.1) rotate(5deg); background:linear-gradient(145deg,#28b4ff,#00f5ff); }
-#sendBtn:active { transform:scale(0.95) rotate(-3deg); }
+#sendBtn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: none;
+  background: #6daa99; /* WhatsApp green */
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+#sendBtn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+#sendBtn:active {
+  transform: scale(0.95);
+  box-shadow: none;
+}
 .typing { display:inline-block; } .typing::after { content:'...'; animation:blink 1s infinite; }
 .message.swiping {
   background: rgba(0,255,255,0.2);
   transition: background 0.2s;
 }
+#voiceBtn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: none;
+  background: #c3676c; /* WhatsApp green */
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+#voiceBtn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+#voiceBtn:active {
+  transform: scale(0.95);
+  box-shadow: none;
+}
 @keyframes blink { 0%,50%,100%{opacity:0;} 25%,75%{opacity:1;} }
 @keyframes fadeInUp { to { opacity:1; transform:translateY(0); } }
 @media(max-width:768px){ #chatHeader { font-size:1.2rem; } #chatHeader .button-group button { font-size:0.95rem; } #sendBtn { min-width:45px; min-height:45px; font-size:1.1rem; } }
 @media(max-width:480px){ #chatContainer { padding:0.5rem; } #msg { font-size:0.95rem; } }
+#voicePopup {
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none; /* initially hidden */
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 30, 30, 0.95);
+    color: #0ff;
+    padding: 12px 24px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1rem;
+    z-index: 9999;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    border: 1px solid rgba(0,255,255,0.4);
+    text-align: center;
+    font-family: 'Segoe UI', sans-serif;
+    animation: fadeInUp 0.3s forwards;
+    pointer-events: none;
+
+    min-width: 160px;  /* ensure visible width */
+    min-height: 40px;  /* ensure visible height */
+}
