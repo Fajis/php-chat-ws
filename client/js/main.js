@@ -242,7 +242,7 @@ function connectChat() {
     };
     socket.onerror = err=>{ console.error("WebSocket error", err); clearTimeout(connectTimer); socket.close(); };
 }
-connectChat();
+
 
 // ===== CHAT SEND =====
 function sendMsg(){
@@ -926,4 +926,25 @@ if (speakerBtn) {
     speakerBtn.onclick = async () => {
         await switchAudioOutput(!isUsingSpeaker);
     };
+}
+// ===== FIRST-TIME USER WARNING =====
+function showLegalWarning() {
+    if (!localStorage.getItem('legalWarningSeen')) {
+        const modal = document.getElementById('legalWarningModal');
+        modal.style.display = 'flex'; 
+    }else{
+        connectChat();
+    }
+}
+
+document.getElementById('acceptWarning').onclick = () => {
+    localStorage.setItem('legalWarningSeen', 'true');
+    document.getElementById('legalWarningModal').style.display = 'none';
+};
+
+// Run after page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', showLegalWarning);
+} else {
+    showLegalWarning();
 }
